@@ -1,0 +1,67 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.85in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,booktabs,graphicx,xurl,hyperref}
+\graphicspath{{outputs/task1/}{outputs/task2/}{outputs/task3/}}
+
+\title{CS 498 HW0 Report\\Perspective, Homography, and Epipolar Geometry}
+\author{Your Name (NetID)}
+\date{Fall 2026}
+
+\begin{document}
+\maketitle
+
+\section{Homography and 2D insertion}
+State your point normalization and DLT construction. Explain the transform
+from logo pixels to the metric court rectangle and then to the image. Include
+\path{task1a_basketball_homography.png} and
+\path{task1b_basketball_insertion.png}, report the maximum corner-transfer
+error, and explain your alpha-composition equation.
+
+\subsection{Tennis transfer and camera height}
+List the A--H metric XY coordinates you derived for the supplied UV points. Include
+\path{task1c_tennis_correspondences.png},
+\path{task1c_tennis_insertion.png} and
+\path{task1c_tennis_alignment.png}. Report the eight-anchor reprojection RMSE and explain why
+a planar homography with unknown intrinsics does not determine a unique camera
+height.
+
+\section{Camera projection and 3D insertion}
+Describe the projection DLT and explain how knowledge of $K$ determines whether
+the metric court plane is sufficient or non-coplanar landmarks are needed.
+Include \path{task2b_bunny_insertion.png},
+\path{task2a_reprojection.png}, and \path{task2c_camera_pose.png}. Report
+the mean and maximum reprojection error, $K$, $R$, $t$, $C$, and the optical-center
+height. Verify $C=-R^\top t$.
+
+\section{Two-view epipolar geometry}
+Describe the two point normalizations, eight-point design matrix, and rank-two
+enforcement. Include \path{task3b_correspondences.png} and
+\path{task3b_epipolar_lines.png}. Report the rank, mean symmetric epipolar
+distance, and median distance; explain why real correspondence residuals are
+not exactly zero.
+
+\section{Limitations and improvements}
+Discuss annotation precision, degenerate configurations, and at least two
+possible improvements.
+
+\section*{Optional foreground-preserving video bonus}
+If attempted, describe your background estimate, foreground alpha, and final
+composition. State that you implemented the complete bonus pipeline without a
+provided helper. Submit \path{bonus_tennis_video.py}, one representative PNG
+for each of match001, match005, match028, match091, and match125, and one final
+MP4 for match005. This is the only section in which Gen-AI leverage is allowed.
+
+\section*{AI-use declaration}
+Check one statement.
+
+\begin{itemize}
+  \item[$\square$] I did not use generative AI for this homework.
+  \item[$\square$] I did not use generative AI for any required part. I used it only in the optional bonus marked ``Gen-AI leverage allowed.'' Tool/model, purpose, and affected files: \underline{\hspace{1.4in}}
+\end{itemize}
+
+I confirm that generative AI did not write or complete my required code,
+select required correspondences, derive my required answers, generate my
+analysis, or write my required report.
+
+\end{document}
