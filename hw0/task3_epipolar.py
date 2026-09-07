@@ -25,8 +25,31 @@ def estimate_fundamental_matrix(matches: np.ndarray) -> np.ndarray:
       4. enforce rank two by zeroing the smallest singular value; and
       5. denormalize and choose a stable scale.
     """
-    del matches
-    return np.array([[0.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]])
+    def normalize_2d(contours):
+        centroid = contours.mean(axis=0)
+        mean_distance = np.linalg.norm(contours - centroid,axis=1).mean()
+        scale = np.sqrt(2) / mean_distance
+        norm_matrix = np.array(
+            [[scale, 0.0, -scale*centroid[0]],
+             [0.0 ,scale, -scale*centroid[1]],
+             [0.0, 0.0, 1.0]
+             ]
+        )
+        return (contours - centroid) * scale, norm_matrix
+    norm_p1, norm_matrix_1 = normalize_2d(matches[:, 0:2]) #view 1
+    norm_p2, norm_matrix_2 = normalize_2d(matches[:, 2:4]) #view 2
+    #build the N x 9 design matrix, one row per match from x2^T F x1 = 0
+    u1, v1 = norm_p1[:,0], norm_p1[:,1]
+    u2, v2 = norm_p2[:,0], norm_p2[:,1]
+    ones = np.ones_like(u1)
+    desgin_matrix = np.stack([u2*u1, u2*v1, u2, v2*u1, v2*v1, v2, u1, v1, ones], axis=1)
+    U, S, Vt = np.linalg.svd(desgin_matrix)
+    norm_F = Vt[-1].reshape(3,3)
+    Uf, Sf, Vtf = np.linalg.svd(norm_F)
+    Sf[-1] = 0.0
+    norm_F = Uf @ np.diag(Sf) @ Vtf
+    F = norm_matrix_2.T @ norm_F @ norm_matrix_1
+    return F / np.linalg.norm(F)
 
 
 # ------------------- DO NOT MODIFY CODE OUTSIDE THE BLOCK --------------------

@@ -36,11 +36,44 @@ def estimate_projection_matrix(xyz: np.ndarray, uv: np.ndarray) -> np.ndarray:
     design matrix using its matching UV pixel, solve the right null space with
     SVD, reshape to 3 x 4, and choose a stable scale.
     """
-    del xyz, uv
-    intrinsic = np.array([[1000.0, 0.0, 960.0], [0.0, 1000.0, 540.0], [0.0, 0.0, 1.0]])
-    rotation = np.diag([1.0, -1.0, -1.0])
-    camera_center = np.array([14.0, -15.0, 10.0])
-    return intrinsic @ np.column_stack((rotation, -rotation @ camera_center))
+    def normalize_3d(contours):
+        centroid = contours.mean(axis=0)
+        mean_distance = np.linalg.norm(contours - centroid,axis=1).mean()
+        scale = np.sqrt(3) / mean_distance
+        norm_matrix = np.array(
+            [[scale, 0.0, 0.0, -scale*centroid[0]],
+             [0.0, scale, 0.0, -scale*centroid[1]],
+             [0.0, 0.0, scale, -scale*centroid[2]],
+             [0.0, 0.0, 0.0, 1.0]
+             ]
+        )
+        return (contours - centroid) * scale, norm_matrix
+    def normalize_2d(contours):
+        centroid = contours.mean(axis=0)
+        mean_distance = np.linalg.norm(contours - centroid,axis=1).mean()
+        scale = np.sqrt(2) / mean_distance
+        norm_matrix = np.array(
+            [[scale, 0.0, -scale*centroid[0]],
+             [0.0 ,scale, -scale*centroid[1]],
+             [0.0, 0.0, 1.0]
+             ]
+        )
+        return (contours - centroid) * scale, norm_matrix
+
+    norm_xyz, norm_matrix_xyz = normalize_3d(xyz)
+    norm_uv, norm_matrix_uv = normalize_2d(uv)
+    x, y, z = norm_xyz[:,0], norm_xyz[:,1], norm_xyz[:,2]
+    u, v = norm_uv[:,0], norm_uv[:,1]
+    zeros, ones = np.zeros_like(x), np.ones_like(x)
+    even_rows = np.stack([x, y, z, ones, zeros, zeros, zeros, zeros, -u*x, -u*y, -u*z, -u], axis=1)
+    odd_rows = np.stack([zeros, zeros, zeros, zeros, x, y, z, ones, -v*x, -v*y, -v*z, -v], axis=1)
+    desgin_matrix = np.empty((2*len(x), 12))
+    desgin_matrix[0::2] = even_rows
+    desgin_matrix[1::2] = odd_rows
+    U, S, Vt = np.linalg.svd(desgin_matrix)
+    norm_P = Vt[-1].reshape(3,4)
+    P = np.linalg.inv(norm_matrix_uv) @ norm_P @ norm_matrix_xyz
+    return P / np.linalg.norm(P)
 
 
 # ------------------- DO NOT MODIFY CODE OUTSIDE THE BLOCK --------------------

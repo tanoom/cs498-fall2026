@@ -62,14 +62,14 @@ TENNIS_UV = np.array(
 # origin and axes defined in the handout, and keep the A--H order unchanged.
 TENNIS_XY = np.array(
     [
-        [0.0, 0.0],  # A: replace
-        [0.0, 0.0],  # B: replace
-        [0.0, 0.0],  # C: replace
-        [0.0, 0.0],  # D: replace
-        [0.0, 0.0],  # E: replace
-        [0.0, 0.0],  # F: replace
-        [0.0, 0.0],  # G: replace
-        [0.0, 0.0],  # H: replace
+        [-5.485, 0.0],  # A: replace
+        [5.485, 0.0],  # B: replace
+        [-5.485, 23.77],  # C: replace
+        [5.485, 23.77],  # D: replace
+        [-4.115, 0.0],  # E: replace
+        [4.115, 0.0],  # F: replace
+        [-4.115, 23.77],  # G: replace
+        [4.115, 23.77],  # H: replace
     ],
     dtype=float,
 )
@@ -85,7 +85,40 @@ def estimate_homography(xy: np.ndarray, uv: np.ndarray) -> np.ndarray:
       3. use SVD to take its right-null-space vector;
       4. reshape, denormalize, and choose a stable matrix scale.
     """
-    return np.eye(3)  # Runnable placeholder: replace with your estimate.
+    def normalize(contours):
+        centroid = contours.mean(axis=0)
+        mean_distance = np.linalg.norm(contours - centroid,axis=1).mean()
+        scale = np.sqrt(2) / mean_distance
+        norm_matrix = np.array(
+            [[scale, 0.0, -scale*centroid[0]],
+             [0.0 ,scale, -scale*centroid[1]],
+             [0.0, 0.0, 1.0]
+             ]
+        )
+        return (contours - centroid) * scale, norm_matrix
+    #normalization
+    norm_xy, norm_matrix_xy = normalize(xy) #source
+    norm_uv, norm_matrix_uv = normalize(uv) #destination
+
+    #build the design matrix, dimension is 8*9 since we have four points
+    x, y = norm_xy[:,0], norm_xy[:,1]
+    u, v = norm_uv[:,0], norm_uv[:,1]
+    zeros, ones = np.zeros_like(x), np.ones_like(x)
+    even_rows = np.stack([zeros, zeros, zeros, x, y, ones, -v*x, -v*y, -v], axis=1)
+    odd_rows = np.stack([x, y, ones, zeros, zeros, zeros, -u*x, -u*y, -u], axis=1)
+    desgin_matrix = np.empty((2*len(x), 9))
+    desgin_matrix[0::2] = even_rows
+    desgin_matrix[1::2] = odd_rows
+
+    
+    U, S, Vt = np.linalg.svd(desgin_matrix)
+    norm_H = Vt[-1].reshape(3,3)
+    #norm_uv = norm_H @ norm_xy
+    #norm_matrix_uv @ uv = norm_H @ norm_matrix_xy @ xy
+    #uv = (norm_matrix_uv_inv @ norm_H @ norm_matrix_xy) @ xy
+    #so H = norm_matrix_uv_inv @ norm_H @ norm_matrix_xy
+    H = np.linalg.inv(norm_matrix_uv) @ norm_H @ norm_matrix_xy
+    return H / np.linalg.norm(H) #stable scale, ||H|| = 1
 
 
 def logo_to_image_homography(
@@ -100,8 +133,15 @@ def logo_to_image_homography(
     court_to_image. Include the vertical flip because logo pixel y points down
     while court y points up.
     """
-    del logo_shape, lower_left_xy, size_xy
-    return np.asarray(court_to_image, dtype=float)  # Runnable placeholder.
+    #since logo_shape is tuple[int, ...] I can't simply assign h,w = logo_shape
+    h, w = logo_shape[:2]
+    x0, y0 = lower_left_xy
+    sx, sy = size_xy
+    logo_to_court = np.array([[sx/w, 0.0, x0],
+                             [0.0, -sy/h, y0+sy],
+                             [0.0, 0.0, 1.0]])
+    H = court_to_image @ logo_to_court
+    return H / np.linalg.norm(H)
 
 
 def alpha_blend(foreground_rgba: np.ndarray, background_rgb: np.ndarray) -> np.ndarray:
@@ -111,8 +151,8 @@ def alpha_blend(foreground_rgba: np.ndarray, background_rgb: np.ndarray) -> np.n
     handout. Alpha is the final channel of foreground_rgba and must blend all
     three foreground RGB channels with the matching background pixel.
     """
-    del foreground_rgba
-    return np.asarray(background_rgb, dtype=float).copy()  # Runnable placeholder.
+    alpha = foreground_rgba[..., 3:4]
+    return alpha * foreground_rgba[..., :3] + (1.0 - alpha) * background_rgb
 
 
 # ------------------- DO NOT MODIFY CODE OUTSIDE THE BLOCK --------------------
