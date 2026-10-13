@@ -38,9 +38,9 @@ def points_to_voxels(
     ``origin`` is [3]. Divide xyz by w, transpose to [N, 3], use
     ``torch.floor``, cast to ``torch.long``, and do not clip.
     """
-    return torch.zeros(
-        (points.shape[1], 3), dtype=torch.long, device=points.device
-    )
+    # we first covert it from [3,N] columns to [N,3] rows
+    xyz = (points[:3] / points[3:4]).T
+    return torch.floor((xyz - origin.to(xyz) / voxel_size)).long()
 
 
 def fuse_voxel_evidence(
@@ -64,11 +64,13 @@ def fuse_voxel_evidence(
         voxel_indices[valid], dim=0, sorted=True, return_inverse=True
     )
     counts = torch.bincount(inverse, minlength=len(coordinates))
+    log_probabilities = torch.log_softmax(raw_logits[valid].to(torch.float64), dim=1)
     log_evidence = torch.zeros(
         (len(coordinates), raw_logits.shape[1]),
         dtype=torch.float64,
         device=raw_logits.device,
     )
+    log_evidence.index_add_(0, inverse, log_probabilities)
     return coordinates, counts > 0, log_evidence, counts
 
 

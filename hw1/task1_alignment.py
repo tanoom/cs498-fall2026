@@ -34,8 +34,36 @@ def fit_rigid_svd(source: np.ndarray, target: np.ndarray) -> np.ndarray:
     ``source`` and ``target`` are homogeneous [4, N] point matrices. Lecture
     notation is used directly: P_target = T_source_to_target @ P_source.
     """
-    del target
-    return np.eye(4)
+    # we first drop the homogeneous row to get points [3,N]
+    P = source[:3]
+    Q = source[:3]
+
+    #1. get the centroids, and subtract each point with them
+    # we keep dim here because of the subtraction
+    p_bar = P.mean(axis=1, keepdims=True)
+    q_bar = Q.mean(axis=1, keepdims=True)
+    P_hat= P - p_bar
+    Q_hat = Q - q_bar
+
+    #2. find the best R matrix with center-normalized points
+    U, S, Vt = np.linalg.svd(P_hat @ Q_hat.T)
+    V = Vt.T
+
+    #3. ensure det != -1 to get rotation instead of refection
+    d = np.sign(np.linalg.det(V @ U.T))
+    D = np.diag([1.0, 1.0, d])
+    R = V @ D @ U.T
+
+    #4. R is derived, we can have closed form solution of t
+    t = q_bar - R @ p_bar
+
+    #5. restore the result back to the homogeneous form
+    T = np.eye(4)
+    T[:3, :3] = R
+    T[:3, 3] = t[:, 0]
+    return T
+
+
 
 
 def nearest_correspondences(
@@ -48,12 +76,15 @@ def nearest_correspondences(
     Transpose xyz to [N, 3] only for the SciPy cKDTree boundary, query one
     neighbor per source column, and retain distances <= ``max_distance``.
     """
-    count = min(source.shape[1], target.shape[1])
-    source_ids = np.arange(count)
-    target_ids = np.arange(count)
-    distances = np.linalg.norm(source[:3, :count] - target[:3, :count], axis=0)
-    keep = distances <= max_distance
-    return source_ids[keep], target_ids[keep], distances[keep]
+    # we first drop the homogeneous row to get points [3,N]
+    # and then transpose it as instructed above
+    tree = cKDTree(target[:3].T)
+    distances, nearest_ids = tree.query(source[:3].T, k=1)
+    is_keep = distances <= max_distance
+    source_ids = np.nonzero(is_keep)[0]
+    target_ids = nearest_ids[is_keep]
+    return source_ids, target_ids, distances[is_keep]
+
 
 
 # ------------------- DO NOT MODIFY CODE OUTSIDE THE BLOCK --------------------

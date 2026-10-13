@@ -50,9 +50,34 @@ def icp(
     without re-matching, then compare absolute change with the previous value.
     The transform trace begins with identity and includes every update.
     """
-    del target, max_iterations, max_correspondence_distance, trim_fraction, tolerance
-    return np.eye(4), np.empty(0), np.eye(4)[None]
+    T = np.eye(4)
+    transforms, rmses = [T], []
+    for i in range(max_iterations):
+        # map the original souce with the current estimate
+        moved_source = T @ source
+        # get the nearest target point per source point by using distance threshold
+        source_ids, target_ids, distances = nearest_correspondences(
+            moved_source, target, max_correspondence_distance
+        )
 
+        if distances.size < 3:
+            break
+
+        # keep the closes max(3, ceil(f*n)) pairs; the farthest are probably mismatches
+        is_keep = np.argsort(distances, kind="stable")[:max(3, int(np.ceil(trim_fraction*distances.size)))]
+        source_kept, target_kept = moved_source[:, source_ids[is_keep]], target[:, target_ids[is_keep]]
+        # incremental correction 
+        delta_T = fit_rigid_svd(source_kept, target_kept)
+        T = delta_T @ T
+        transforms.append(T)
+
+        residuals = np.linalg.norm((delta_T @ source_kept)[:3]-target_kept[:3], axis=0)
+        rmses.append(np.sqrt(np.mean(residuals ** 2)))  
+
+        # Converged when the RMSE stops changing and skipped the first iteration.
+        if i > 1 and abs(rmses[-1]-rmses[-2]) < tolerance:
+            break
+    return T, np.asarray(rmses), np.stack(transforms)
 
 def chain_relative_poses(relative_transforms: np.ndarray) -> np.ndarray:
     """Chain T_(L_i+1 -> L_i) transforms into T_(L_i -> W) poses.
@@ -60,7 +85,10 @@ def chain_relative_poses(relative_transforms: np.ndarray) -> np.ndarray:
     Use T_(L_i+1 -> W) = T_(L_i -> W) @ T_(L_i+1 -> L_i).
     Do not add pose components.
     """
-    return np.repeat(np.eye(4)[None], len(relative_transforms) + 1, axis=0)
+    poses = [np.eye(4)]
+    for T_next_to_current in relative_transforms:
+        poses.append(poses[-1] @ T_next_to_current)
+    return np.stack(poses)
 
 
 def relative_trajectory_error(
@@ -74,9 +102,15 @@ def relative_trajectory_error(
     T_(L_i+delta -> W) for the estimate and reference, then measure the error
     transform using the equations in the handout.
     """
-    del ground_truth_poses
-    count = max(len(estimated_poses) - delta, 0)
-    return np.zeros(count), np.zeros(count)
+    def relative_motion(poses):
+        return np.linalg.inv(poses[:-delta]) @ poses[delta:]
+    if len(estimated_poses) <= delta:
+        return np.zeros(0), np.zeros(0)
+    E = np.linalg.inv(relative_motion(ground_truth_poses)) @ relative_motion(estimated_poses)
+    translation_error = np.linalg.norm(E[:, :3, 3], axis=1)
+    cos_theta = (np.trace(E[:, :3, :3], axis1=1, axis2=2) - 1) / 2
+    roation_error = np.degrees(np.arccos(np.clip(cos_theta, -1,1)))
+    return translation_error, roation_error
 
 
 # ------------------- DO NOT MODIFY CODE OUTSIDE THE BLOCK --------------------

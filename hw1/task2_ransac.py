@@ -42,8 +42,50 @@ def ransac_rigid(
     Keep the first hypothesis on ties; return identity/all-false if none has
     three inliers. Recompute the final mask after refitting (residual <= threshold).
     """
-    del target, threshold, max_trials, rng
-    return np.eye(4), np.zeros(source.shape[1], dtype=bool)
+    n = source.shape[1]
+    
+    T_identity = np.eye(4)
+    empty_consensus = np.zeros(n, dtype=bool)
+    if n < 3:
+        return T_identity, empty_consensus
+
+    def residuals(T):
+        #map source columns into the target
+        #and derive each pair's distance to its paired target point
+        mapped = T @ source
+        return np.linalg.norm(mapped[:3] - target[:3], axis=0)
+
+    def is_degenerate(points, ids):
+        #check whether the three points are colinear
+        a, b, c = points[:3, ids].T
+        return np.linalg.norm(np.cross(b - a, c - a)) < 1e-8
+
+    best_consensus_size = -1
+    best_consensus = None
+
+    for _ in range(max_trials):
+        #1. sample a set of noncolinear distinct correspondances
+        sample_ids = rng.choice(n, size=3, replace=False)
+        if(is_degenerate(source, sample_ids) or is_degenerate(target, sample_ids)):
+            continue
+        #2. fit a hypothesis to the sample
+        T_hypothesis = fit_rigid_svd(source[:, sample_ids], target[:, sample_ids])
+        #3. count inliers for this hypothesis
+        consensus = residuals(T_hypothesis) <= threshold
+        consensus_size = int(consensus.sum())
+        #4. update the best match
+        if consensus_size > best_consensus_size:
+            best_consensus = consensus
+            best_consensus_size = consensus_size
+
+    if best_consensus is None or best_consensus_size < 3:
+        return T_identity, empty_consensus
+
+    #the inliers and the T are not corresponding to best_consensus after iterations
+    T_best = fit_rigid_svd(source[:, best_consensus], target[:, best_consensus])
+    inliers_best = residuals(T_hypothesis) <= threshold
+    return T_best, inliers_best
+
 
 
 # ------------------- DO NOT MODIFY CODE OUTSIDE THE BLOCK --------------------
