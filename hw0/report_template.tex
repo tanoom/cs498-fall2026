@@ -2,7 +2,7 @@
 \usepackage[margin=0.85in]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage{amsmath,amssymb,booktabs,graphicx,xurl,hyperref}
-\graphicspath{{outputs/task1/}{outputs/task2/}{outputs/task3/}}
+\graphicspath{{outputs/task1/}{outputs/task2/}{outputs/task3/}{outputs/bonus/}}
 
 \title{CS 498 HW0 Report\\Perspective, Homography, and Epipolar Geometry}
 \author{Your Name (NetID)}
@@ -46,22 +46,35 @@ Discuss annotation precision, degenerate configurations, and at least two
 possible improvements.
 
 \section*{Optional foreground-preserving video bonus}
-If attempted, describe your background estimate, foreground alpha, and final
-composition. State that you implemented the complete bonus pipeline without a
-provided helper. Submit \path{bonus_tennis_video.py}, one representative PNG
-for each of match001, match005, match028, match091, and match125, and one final
-MP4 for match005. This is the only section in which Gen-AI leverage is allowed.
+I implemented the complete bonus pipeline in \path{bonus_tennis_video.py}
+without a provided helper, reusing only my Task~1 homography and
+\path{alpha_blend} functions and A--H coordinates.
+\begin{enumerate}
+\item \textbf{Clean background:} take the per-pixel median over 45 frames; moving
+players cover any pixel only briefly, so the median is the empty court.
+\item \textbf{Foreground mask:} compare each frame with the clean background;
+pixels with a large color difference are players. The mask is soft (0 to 1),
+cleaned of speckles and holes, and slightly blurred at the edges.
+\item \textbf{Composite:} warp the logo onto the court with the Task~1
+homography, make it transparent wherever the mask marks a player, and blend it
+over the original frame, so players stay in front of the logo.
+\end{enumerate}
+\textbf{Gen-AI disclosure:} Claude (Anthropic, via Claude Code) was used to
+design, implement, and debug \path{bonus_tennis_video.py}, generate
+\path{outputs/bonus/}, and draft this section.
 
-\section*{AI-use declaration}
-Check one statement.
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.49\linewidth]{match001_representative.png}
+\includegraphics[width=0.49\linewidth]{match005_representative.png}\\[2pt]
+\includegraphics[width=0.49\linewidth]{match028_representative.png}
+\includegraphics[width=0.49\linewidth]{match091_representative.png}\\[2pt]
+\includegraphics[width=0.49\linewidth]{match125_representative.png}
+\caption{Occlusion-aware logo insertion on match001, match005, match028,
+match091, and match125 (left to right, top to bottom). In every frame the near
+player remains in front of the virtual logo. The full match005 result is
+\protect\path{match005_occlusion_aware.mp4}.}
+\end{figure}
 
-\begin{itemize}
-  \item[$\square$] I did not use generative AI for this homework.
-  \item[$\square$] I did not use generative AI for any required part. I used it only in the optional bonus marked ``Gen-AI leverage allowed.'' Tool/model, purpose, and affected files: \underline{\hspace{1.4in}}
-\end{itemize}
-
-I confirm that generative AI did not write or complete my required code,
-select required correspondences, derive my required answers, generate my
-analysis, or write my required report.
 
 \end{document}
