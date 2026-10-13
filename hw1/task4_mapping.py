@@ -40,7 +40,7 @@ def points_to_voxels(
     """
     # we first covert it from [3,N] columns to [N,3] rows
     xyz = (points[:3] / points[3:4]).T
-    return torch.floor((xyz - origin.to(xyz) / voxel_size)).long()
+    return torch.floor((xyz - origin.to(xyz)) / voxel_size).long()
 
 
 def fuse_voxel_evidence(

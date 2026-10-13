@@ -75,7 +75,7 @@ def icp(
         rmses.append(np.sqrt(np.mean(residuals ** 2)))  
 
         # Converged when the RMSE stops changing and skipped the first iteration.
-        if i > 1 and abs(rmses[-1]-rmses[-2]) < tolerance:
+        if i > 0 and abs(rmses[-1]-rmses[-2]) < tolerance:
             break
     return T, np.asarray(rmses), np.stack(transforms)
 
@@ -109,8 +109,8 @@ def relative_trajectory_error(
     E = np.linalg.inv(relative_motion(ground_truth_poses)) @ relative_motion(estimated_poses)
     translation_error = np.linalg.norm(E[:, :3, 3], axis=1)
     cos_theta = (np.trace(E[:, :3, :3], axis1=1, axis2=2) - 1) / 2
-    roation_error = np.degrees(np.arccos(np.clip(cos_theta, -1,1)))
-    return translation_error, roation_error
+    rotation_error = np.degrees(np.arccos(np.clip(cos_theta, -1,1)))
+    return translation_error, rotation_error
 
 
 # ------------------- DO NOT MODIFY CODE OUTSIDE THE BLOCK --------------------

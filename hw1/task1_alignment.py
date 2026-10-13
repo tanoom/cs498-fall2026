@@ -36,7 +36,7 @@ def fit_rigid_svd(source: np.ndarray, target: np.ndarray) -> np.ndarray:
     """
     # we first drop the homogeneous row to get points [3,N]
     P = source[:3]
-    Q = source[:3]
+    Q = target[:3]
 
     #1. get the centroids, and subtract each point with them
     # we keep dim here because of the subtraction

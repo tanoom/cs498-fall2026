@@ -83,7 +83,7 @@ def ransac_rigid(
 
     #the inliers and the T are not corresponding to best_consensus after iterations
     T_best = fit_rigid_svd(source[:, best_consensus], target[:, best_consensus])
-    inliers_best = residuals(T_hypothesis) <= threshold
+    inliers_best = residuals(T_best) <= threshold
     return T_best, inliers_best
 
 
